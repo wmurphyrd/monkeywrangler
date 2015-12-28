@@ -1,0 +1,187 @@
+#library(xlsx); library(dplyr); library(tidyr); library(ggplot2); library(magrittr)
+#TODO check for presence of RespondentID, create if missing (needed for plot stats)
+
+#' Read an XLS format export from SurveyMonkey.
+#'
+#' This function parses an XLS-format exported file from SurveyMonkey into a
+#' data frame. The function attempts to deduce the format of each survey
+#' question (e.g. multiple versus single response) from properties of the
+#' headers and the responses in the file.
+#'
+#' To obtain the proper file from SurveyMonkey, request a data export of
+#' "all responses" and choose the XLS format (\strong{not} XLS+).
+#'
+#' @param fname Character vector of length 1 pointing to file location
+#' @param idcols Numeric vector identifying columns in the data to be treated
+#' as respondent identifiers as opposed to question responses.
+#'
+#' @return data frame of class SurveyQuestion. Each row represents a response
+#'
+#' @export
+loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
+  header <- names(xlsx::read.xlsx2(fname, sheetIndex = 1, endRow = 1, check.names = F))
+  # blank headers indicate additional responses under the same header as the previous
+  # - fill those in
+  headRuns <- rle(header)
+  headBlanks <- which(headRuns[[2]] == " ")
+  headRuns[[1]][headBlanks - 1] <- headRuns[[1]][headBlanks - 1] +
+    headRuns[[1]][headBlanks]
+  headRuns <- lapply(headRuns, function(x)x[-headBlanks])
+  header <- inverse.rle(headRuns)
+  headRuns[[2]] <- seq_along(headRuns[[1]]) - length(idcols)
+  qId <- paste0("Q", inverse.rle(headRuns))
+  #for(i in seq_len(length(header)-1)) if(header[i+1] == " ") header[i+1] <- header[i]
+  #load in with unaltered column names to capture second level headers
+  dat <- xlsx::read.xlsx2(fname, sheetIndex = 1, startRow = 2, check.names = F)
+
+  #data frame to hold various properties learned about each question
+  #starting with first and second level headers
+  qProps <- data.frame(header = factor(header),
+                       header2 = names(dat),
+                       questionId = qId,
+                       stringsAsFactors = F)
+
+  names(dat)[idcols] <- as.character(qProps[idcols, "header"])
+  dat <- data.frame(dat) #fix invalid/duplicate names for dplyr/tidyr methods to work
+  # ensure a RespondentID variable is available to determine sample size
+  # --------- unstested -------------
+  if(!("RespondentID" %in% names(dat))) {
+    dat$RespondentID <- factor(seq_along(nrow(dat)))
+  }
+  # ---------- end untested ----------
+
+  #row names create a key for lookup of properties by column name/question
+  row.names(qProps) <- names(dat)
+  qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
+
+  makeNA <- function(x) {
+    if("" %in% levels(x)) levels(x)[levels(x) == ""] <- NA
+    x
+  }
+  dat %<>% dplyr::mutate_each(dplyr::funs(makeNA))
+
+  qProps$empty <- sapply(dat, function(x)all(is.na(x)))
+
+  #Questions where every answer is unique and not a number are likely to be free text
+  qProps$uniqueAnswers <- !qProps$empty &
+    sapply(dat, function(x)all(table(x) == 1))
+
+  suppressWarnings(qProps$numbers <- !qProps$empty &
+      sapply(dat, function(x)all(!is.na(as.numeric(as.character(na.omit(x)))))))
+
+  #Questions where there is only one type of answer and it matches the
+  #subheading are multiple response questions (checkboxes). For multiple
+  #response matrix questions, the response is part of the subheading (which also
+  #contains the question)
+  qProps$multiBlockItemTypes <- sapply(names(dat), function(x){
+    items <- levels(dat[[x]])
+    if(length(items) == 1 && items == qProps[x, "header2"]) return(1)
+    if(length(items) == 1 && grepl(items, qProps[x, "header2"])) return(2)
+    if(length(na.omit(dat[[x]])) == 1) return(-1)
+    0
+  })
+  qProps %<>% dplyr::mutate(multiBlockItems = multiBlockItemTypes > 0,
+                     multiMatrixItems = multiBlockItemTypes == 2,
+                     lonely  = multiBlockItemTypes == -1)
+
+  # Free text answers selected as those where every anser is unique, not a
+  # number, and not part of a multiple response block (which would match if only
+  # one non-missing answer was present)
+  qProps %<>% dplyr::mutate(trueOthers = header2 == "Open-Ended Response" |
+                       grepl("please specify", header2, ignore.case = T),
+                     likelyOthers = (uniqueAnswers & !(multiBlockItems | numbers)),
+                     others = trueOthers | likelyOthers)
+
+  # ID single item responses to ignore extra header level when naming question
+  qProps %>% dplyr::filter(!trueOthers) %>% magrittr::extract2("questionId") %>%
+    table %>% magrittr::extract(. == 1) %>% names ->
+    singles
+  qProps %<>% dplyr::mutate(singletons = questionId %in% singles)
+
+  colNameGroups <- split(qProps$varNames, qProps$questionId)
+  row.names(qProps) <- qProps$varNames
+
+  blockType <- sapply(colNameGroups, function(colNames) {
+    if(length(colNames) < 2) return("")
+    if(any(qProps[colNames, "multiMatrixItems"])) return("multiMatrix")
+    if(any(qProps[colNames, "multiBlockItems"])) return("multiBlock")
+    if(all(qProps[colNames, "numbers"])) return("numericBlock")
+    if(sum(qProps[colNames, "lonely"]) > 1) return("lonelyBlock")
+    "block"
+  })
+  qProps %<>% dplyr::mutate(blockType = blockType[questionId])
+  qProps %<>% dplyr::mutate(blockExtra = ((blockType == "multiBlock" & !multiBlockItems) |
+                       (blockType == "multiMatrix" &  !multiMatrixItems)) & !empty)
+  # item labels for single response (radio button) matrices
+  qProps %<>% dplyr::mutate(subgroup = ifelse(blockType == "multiBlock" | singletons, NA, header2))
+
+  qProps %<>% dplyr::mutate(type  = ifelse(singletons, "Single Question", "Response Block")) %>%
+    #mutate(type = ifelse(blockType == "lonelyBlock", , type)) %>%
+    #mutate(type = ifelse(empty, "Empty", type)) %>%
+    dplyr::mutate(type = ifelse(blockType == "multiBlock", "Multiple Response Question", type)) %>%
+    dplyr::mutate(type = ifelse(blockType == "multiMatrix", "Multiple Response Block", type)) %>%
+    dplyr::mutate(type = ifelse(others | blockExtra, "Free Text", type)) %>%
+    dplyr::mutate(type = ifelse(numbers, "Numeric Entry", type)) %>%
+    dplyr::mutate(type = ifelse(blockType == "numericBlock", "Numeric Block", type))
+    #mutate(type = ifelse(block & lonely, "Response Block", type))
+  # multiple types existing under a single question header need to be
+  # split into seperate quesitonIds for successful plotting and summaries later
+  # --------untested----------
+  qTypes <- qProps %>% magrittr::extract(c("questionId", "type")) %>%
+    unique
+  dups <- qTypes %>% magrittr::extract("questionId") %>% duplicated
+  newQIds <- seq(length(unique(qProps$questionId)) + 1, length.out = sum(dups))
+  newQIds <- paste0("Q", newQIds)
+  qTypes <- cbind(qTypes[dups, ], newQId = newQIds)
+  qProps <- merge(qProps, qTypes, all.x = T) %>%
+    dplyr::mutate(questionId = factor(ifelse(is.na(newQId),
+                                             as.character(questionId),
+                                             as.character(newQId)))) %>%
+    dplyr::select(-newQId)
+  # --------- end untested ---------
+  gathercols <- names(dat)[-idcols]
+  dat <- tidyr::gather_(dat, "question", "response", gathercols, na.rm=TRUE)
+
+  row.names(qProps) <- qProps$varNames
+  dat$question <- as.character(dat$question)
+  dat$subgroup <- qProps[dat$question, "subgroup"]
+  dat$type <- as.factor(qProps[dat$question, "type"])
+  #tweak MR matrix questions because the true response of value is in the 2nd level header
+  #TODO make option to swap first and second regmatches for group/value
+  multimatrices <- qProps$type == "Multiple Response Block" #qProps$multiMatrix & !qProps$others
+  if(any(multimatrices)) {
+    key <- regexec("(.+) - (.+)", qProps[multimatrices, "header2"]) %>%
+      regmatches(x = qProps[multimatrices, "header2"]) %>%
+      do.call(what = rbind)
+    if(!is.null(key)) {
+      row.names(key) <- qProps[multimatrices , "varNames"]
+      multimatrixrows <- which(dat$question %in% qProps[multimatrices, "varNames"])
+      dat$response[multimatrixrows] <- key[dat$question[multimatrixrows], 2]
+      dat$subgroup[multimatrixrows] <- key[dat$question[multimatrixrows], 3]
+    }
+  }
+  dat$subgroup <- as.factor(dat$subgroup)
+
+  #dat$question[!multimatrixrows] <- qProps[dat$question[!multimatrixrows], "header"]
+  dat$questionId <- qProps[dat$question, "questionId"]
+  dat$question <- qProps[dat$question, "header"]
+
+  #dat$question <- as.factor(dat$question)
+
+  as.SurveyQuestion(dat, qProps)
+}
+
+
+removeHTML <- function(x) {
+  gsub("<.*?>", " ", x)
+}
+
+exportFreeText <- function(data) {
+  data %<>% dplyr::filter(type == "Free Text", !is.na(response), !(response %in% c("NA", "N/A", "n/a")))
+  lapply(split(data, data$question), function(x) {
+    d = data.frame(x$response)
+    names(d)[1] <- as.character(x$question[1])
+    write.csv(d, paste0(substring(gsub("[^[:alnum:]]","",x$question[1]), 1, 150),
+                     ".csv", c = ""))
+  }) %>% invisible
+}
