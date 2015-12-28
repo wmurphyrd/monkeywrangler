@@ -13,7 +13,7 @@ Imports:
     Hmisc,
     lazyeval,
     reshape2,
-    xlsx,
+    readxl,
     magrittr,
     tidyr
 Suggests:

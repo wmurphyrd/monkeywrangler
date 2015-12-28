@@ -19,7 +19,51 @@
 #'
 #' @export
 loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
-  header <- names(xlsx::read.xlsx2(fname, sheetIndex = 1, endRow = 1, check.names = F))
+#   header <- names(xlsx::read.xlsx2(fname, sheetIndex = 1, endRow = 1, check.names = F))
+#   # blank headers indicate additional responses under the same header as the previous
+#   # - fill those in
+#   headRuns <- rle(header)
+#   headBlanks <- which(headRuns[[2]] == " ")
+#   headRuns[[1]][headBlanks - 1] <- headRuns[[1]][headBlanks - 1] +
+#     headRuns[[1]][headBlanks]
+#   headRuns <- lapply(headRuns, function(x)x[-headBlanks])
+#   header <- inverse.rle(headRuns)
+#   headRuns[[2]] <- seq_along(headRuns[[1]]) - length(idcols)
+#   qId <- paste0("Q", inverse.rle(headRuns))
+#   #for(i in seq_len(length(header)-1)) if(header[i+1] == " ") header[i+1] <- header[i]
+#   #load in with unaltered column names to capture second level headers
+#   dat <- xlsx::read.xlsx2(fname, sheetIndex = 1, startRow = 2, check.names = F)
+#   #data frame to hold various properties learned about each question
+#   #starting with first and second level headers
+#   names(dat)[idcols] <- as.character(header[idcols])
+#   qProps <- data.frame(header = factor(header),
+#                        header2 = names(dat),
+#                        questionId = qId,
+#                        stringsAsFactors = F)
+#   #names(dat)[idcols] <- as.character(qProps[idcols, "header"])
+#   dat <- data.frame(dat) #fix invalid/duplicate names for dplyr/tidyr methods to work
+#
+#   # ensure a RespondentID variable is available to determine sample size
+#   # --------- unstested -------------
+#   if(!("RespondentID" %in% names(dat))) {
+#     dat$RespondentID <- factor(seq_along(nrow(dat)))
+#   }
+#   # ---------- end untested ----------
+#
+#   #row names create a key for lookup of properties by column name/question
+#   row.names(qProps) <- names(dat)
+#   qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
+#
+#   makeNA <- function(x) {
+#     if("" %in% levels(x)) levels(x)[levels(x) == ""] <- NA
+#     x
+#   }
+#   dat %<>% dplyr::mutate_each(dplyr::funs(makeNA))
+
+  ## begin readxl version of loading data ##
+  dat <- readxl::read_excel(fname, sheet = 1, col_names = F)
+  header <- as.character(dat[1, ])
+  header[is.na(header)] <- " "
   # blank headers indicate additional responses under the same header as the previous
   # - fill those in
   headRuns <- rle(header)
@@ -30,36 +74,35 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   header <- inverse.rle(headRuns)
   headRuns[[2]] <- seq_along(headRuns[[1]]) - length(idcols)
   qId <- paste0("Q", inverse.rle(headRuns))
-  #for(i in seq_len(length(header)-1)) if(header[i+1] == " ") header[i+1] <- header[i]
-  #load in with unaltered column names to capture second level headers
-  dat <- xlsx::read.xlsx2(fname, sheetIndex = 1, startRow = 2, check.names = F)
+  header2 <- as.character(dat[2, ])
+  header2[is.na(header2)] <- " "
+  dat <- dat[-1:-2, ]
+  names(dat) <- header2
+  names(dat)[idcols] <- as.character(header[idcols])
 
-  #data frame to hold various properties learned about each question
-  #starting with first and second level headers
+
   qProps <- data.frame(header = factor(header),
                        header2 = names(dat),
                        questionId = qId,
                        stringsAsFactors = F)
 
-  names(dat)[idcols] <- as.character(qProps[idcols, "header"])
-  dat <- data.frame(dat) #fix invalid/duplicate names for dplyr/tidyr methods to work
-  # ensure a RespondentID variable is available to determine sample size
+    # ensure a RespondentID variable is available to determine sample size
   # --------- unstested -------------
   if(!("RespondentID" %in% names(dat))) {
     dat$RespondentID <- factor(seq_along(nrow(dat)))
   }
   # ---------- end untested ----------
-
+  #data.frame fixes non-syntatical column names for use in dplyr/nse operations
+  dat <- data.frame(dat)
+  charCols <- which(sapply(dat, class) %in% c("character", "factor"))
+  charCols <- names(dat)[charCols]
+  dat %<>% dplyr::mutate_each_(dplyr::funs(factor), vars = charCols)
   #row names create a key for lookup of properties by column name/question
   row.names(qProps) <- names(dat)
   qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
 
-  makeNA <- function(x) {
-    if("" %in% levels(x)) levels(x)[levels(x) == ""] <- NA
-    x
-  }
-  dat %<>% dplyr::mutate_each(dplyr::funs(makeNA))
 
+  ## Begin question property inference ##
   qProps$empty <- sapply(dat, function(x)all(is.na(x)))
 
   #Questions where every answer is unique and not a number are likely to be free text
@@ -163,8 +206,8 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   dat$subgroup <- as.factor(dat$subgroup)
 
   #dat$question[!multimatrixrows] <- qProps[dat$question[!multimatrixrows], "header"]
-  dat$questionId <- qProps[dat$question, "questionId"]
-  dat$question <- qProps[dat$question, "header"]
+  dat$questionId <- factor(qProps[dat$question, "questionId"])
+  dat$question <- factor(qProps[dat$question, "header"])
 
   #dat$question <- as.factor(dat$question)
 
