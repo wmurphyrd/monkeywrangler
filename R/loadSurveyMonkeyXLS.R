@@ -16,15 +16,18 @@
 #'   respondent identifiers as opposed to question responses.
 #'
 #' @return an object of class \code{\link{SurveyQuestion}} that inherits from
-#'   data.frame. The data is in long form wherein the \code{question} and
-#'   \code{response} columns are the key and value from a
-#'   \code{\link[tidyr]{gather}} operation. The columns specified in the
-#'   \code{idcols} argument will appear in data as well. Methods are available
-#'   for \link[=summary.SurveyQuestion]{summary} and
+#'   data.frame. The data is in long form wherein each row respresents a single
+#'   selection from the with the corresponding question named in the
+#'   \code{question} column and the selected or entered value in the
+#'   \code{response} column. The columns specified in the \code{idcols} argument
+#'   will appear in data as well as a unique \code{questionId}, question format
+#'   \code{type}, and \code{subgroup} within a survey question where
+#'   appropriate. Methods are available for
+#'   \link[=summary.SurveyQuestion]{summary} and
 #'   \link[=plot.SurveyQuestion]{plot} for the entire survey or for single
 #'   questions retrieved via \link{extractQuestion}.
 #' @seealso \code{\link{SurveyQuestion}}, \code{\link{extractQuestion}},
-#' \code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
+#'   \code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
 #' @export
 loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   ## begin readxl version of loading data ##
@@ -51,17 +54,21 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
                        header2 = names(dat),
                        questionId = qId,
                        stringsAsFactors = F)
-  # ensure a RespondentID variable is available to determine sample size
-  # --------- unstested -------------
-  if(!("RespondentID" %in% names(dat))) {
-    dat$RespondentID <- factor(seq_along(nrow(dat)))
-  }
-  # ---------- end untested ----------
   #data.frame fixes non-syntatical column names for use in dplyr/nse operations
   dat <- data.frame(dat)
+  #why do I force factors here?
   charCols <- which(sapply(dat, class) %in% c("character", "factor"))
   charCols <- names(dat)[charCols]
   dat %<>% dplyr::mutate_each_(dplyr::funs(factor), vars = charCols)
+  # ensure a RespondentID variable is available to determine sample size
+  # --------- unstested -------------
+  if(!("RespondentID" %in% names(dat))) {
+    dat$respondentId <- factor(seq_along(nrow(dat)))
+  } else {
+    dat %<>% dplyr::rename_(respondentId = ~RespondentID)
+  }
+  # ---------- end untested ----------
+
   #row names create a key for lookup of properties by column name/question
   row.names(qProps) <- names(dat)
   qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
@@ -154,7 +161,8 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   #clean up qProps factor levels (will be propagated into questions data)
   # qProps <- qProps[as.numeric(sub("Q", "", qProps$questionId)) > 0, ]
   qProps <- qProps[qProps$questionId > 0, ]
-  qProps %<>% dplyr::mutate_each_(dplyr::funs(factor),
+  qProps %<>% dplyr::mutate_(header = ~removeHTML(header)) %>%
+    dplyr::mutate_each_(dplyr::funs(factor),
                                   list(~-varNames, ~-subgroup, ~-questionId))
 
   #add important properties to each reponse record using qProps
@@ -217,15 +225,15 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
 
 
 removeHTML <- function(x) {
-  gsub("<.*?>", " ", x)
+  gsub("[[:space:]]?<[^>]+>[[:space:]]?", " ", as.character(x))
 }
 
-exportFreeText <- function(data) {
-  data %<>% dplyr::filter(type == "Free Text", !is.na(response), !(response %in% c("NA", "N/A", "n/a")))
-  lapply(split(data, data$question), function(x) {
-    d = data.frame(x$response)
-    names(d)[1] <- as.character(x$question[1])
-    write.csv(d, paste0(substring(gsub("[^[:alnum:]]","",x$question[1]), 1, 150),
-                     ".csv", c = ""))
-  }) %>% invisible
-}
+# exportFreeText <- function(data) {
+#   data %<>% dplyr::filter(type == "Free Text", !is.na(response), !(response %in% c("NA", "N/A", "n/a")))
+#   lapply(split(data, data$question), function(x) {
+#     d = data.frame(x$response)
+#     names(d)[1] <- as.character(x$question[1])
+#     write.csv(d, paste0(substring(gsub("[^[:alnum:]]","",x$question[1]), 1, 150),
+#                      ".csv", c = ""))
+#   }) %>% invisible
+# }

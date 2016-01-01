@@ -138,7 +138,7 @@ extractQuestion <- function(x, question) {
 getQuestionIdFromName <- function(x, question) {
   question <- as.character(question)
   qProps <- getQProps(x)
-  qId <- qProps$questionId[match(question, qProps$header)]
+  qId <- qProps$questionId[match(question, qProps$question)]
   if(is.na(qId)) stop(paste("Question not found in data:", question))
   qId
 }

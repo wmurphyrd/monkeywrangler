@@ -1,8 +1,10 @@
 context("SurveyQuestion class methods")
 
 
-srv <- readRDS(system.file("tests", "testthat", "testSurvey.RDS",
-                           package = "monkeywrangler"))
+# srv <- readRDS(system.file("tests", "testthat", "testSurvey.RDS",
+#                            package = "monkeywrangler"))
+srv <- loadSurveyMonkeyXLS(system.file("extdata", "example.xls",
+                                       package = "monkeywrangler"))
 
 test_that("Question extraction by ID yields expected data frame dimensions",
           {expect_equal(dim(extractQuestionById(srv, 1)), c(96, 14))})
