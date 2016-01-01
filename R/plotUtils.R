@@ -37,7 +37,8 @@ convertResponsesToProportions <- function(answers, factor = NA) {
     form <- ~ response
   if(!is.na(factor)) form <- update(form,
                                     lazyeval::interp(~ x + ., x = as.name(factor)))
-  answers %>% xtabs(formula = form) %>% reshape2::melt %>% merge(sampSizes) %>%
+  answers %>% xtabs(formula = form) %>% reshape2::melt(.) %>%
+    merge(sampSizes) %>%
     dplyr::mutate(prop = value/sampSize,
            upr = vectorizeBinomInt(value, sampSize, 2),
            lwr = vectorizeBinomInt(value, sampSize, 1))

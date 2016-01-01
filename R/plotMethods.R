@@ -1,9 +1,24 @@
+# definedPlotMethods <- c("PooledSurvey", "ResponseBlock",
+#                         "MultipleResponseBlock", "MultipleResponseQuestion",
+#                         "NumericEntry", "NumericBlock", "SingleQuestion")
 
-plot.SurveyQuestion <- function(x, ...) {
-  qProps <- getQProps(x)
-  lapply(qProps$questionId, function(q){
-    plot(extractQuestionById(x, q), ...)
-  })
+plot.SurveyQuestion <- function(x, questionId = NA, ...) {
+  if(missing(questionId)) questionId <- unique(x$questionId)
+  p <- lapply(questionId, function(q){
+    questions <- extractQuestionById(x, q)
+    # must check that a plottable class was found in order to avoid infinite
+    # recursion when plot generic is called below
+    if(!(paste("plot.", class(questions)[1], sep = "") %in% methods("plot")) ||
+       class(questions)[1] == "SurveyQuestion") {
+      message("Unable to plot question ", questions$question[1],
+              ". Type ", questions$type[1],
+              " not currently supported for plotting.")
+      return(NULL)
+    }
+  plot(questions, ...)
+  }) %>% setNames(questionId)
+  if (length(p) == 1) p <- p[[1]]
+  p
 }
 
 plot.PooledSurvey <- function(answers, ...) {
@@ -46,7 +61,7 @@ plot.ResponseBlock <- function(answers, splitBy = NA,
 
 plot.MultipleResponseBlock <- function(answers, splitBy = NA, pop.estimates = T) {
   plt <- ggplot(convertResponsesToProportions(answers, splitBy),
-                aes(x = response, fill = subgroup, y = prop,
+                aes(x = subgroup, fill = response, y = prop,
                     ymax = upr, ymin = lwr)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(x = "Response", y = "Proportion")

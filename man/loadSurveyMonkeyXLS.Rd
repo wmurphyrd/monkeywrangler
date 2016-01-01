@@ -7,22 +7,33 @@
 loadSurveyMonkeyXLS(fname, idcols = 1:9)
 }
 \arguments{
-\item{fname}{Character vector of length 1 pointing to file location}
+\item{fname}{Character vector of length 1 pointing to file location.}
 
-\item{idcols}{Numeric vector identifying columns in the data to be treated
-as respondent identifiers as opposed to question responses.}
+\item{idcols}{Numeric vector identifying columns in the data to be treated as
+respondent identifiers as opposed to question responses.}
 }
 \value{
-data frame of class SurveyQuestion. Each row represents a response
+an object of class \code{\link{SurveyQuestion}} that inherits from
+  data.frame. The data is in long form wherein the \code{question} and
+  \code{response} columns are the key and value from a
+  \code{\link[tidyr]{gather}} operation. The columns specified in the
+  \code{idcols} argument will appear in data as well. Methods are available
+  for \link[=summary.SurveyQuestion]{summary} and
+  \link[=plot.SurveyQuestion]{plot} for the entire survey or for single
+  questions retrieved via \link{extractQuestion}.
 }
 \description{
-This function parses an XLS-format exported file from SurveyMonkey into a
-data frame. The function attempts to deduce the format of each survey
-question (e.g. multiple versus single response) from properties of the
-headers and the responses in the file.
+Parse an XLS-format exported file from SurveyMonkey into a data frame. The
+function attempts to deduce the format of each survey question (e.g. multiple
+versus single response) from patterns in the headers and the responses in the
+file.
 }
 \details{
-To obtain the proper file from SurveyMonkey, request a data export of
-"all responses" and choose the XLS format (\strong{not} XLS+).
+To obtain the proper file from SurveyMonkey, request a data export of "all
+responses" and choose the XLS format (\strong{not} XLS+).
+}
+\seealso{
+\code{\link{SurveyQuestion}}, \code{\link{extractQuestion}},
+\code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
 }
 

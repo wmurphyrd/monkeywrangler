@@ -4,9 +4,9 @@
 \name{monkeywrangler}
 \alias{monkeywrangler}
 \alias{monkeywrangler-package}
-\title{monkeywrangler: A Package to Wrangle, Visualize, and Summarize Survey Monkey Results}
+\title{monkeywrangler: Read, Visualize, and Summarize Survey Monkey Results}
 \description{
-monkeywrangler: A Package to Wrangle, Visualize, and Summarize Survey Monkey Results
+monkeywrangler: Read, Visualize, and Summarize Survey Monkey Results
 
 monkeywrangler.
 }

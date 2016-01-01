@@ -3,69 +3,36 @@
 
 #' Read an XLS format export from SurveyMonkey.
 #'
-#' This function parses an XLS-format exported file from SurveyMonkey into a
-#' data frame. The function attempts to deduce the format of each survey
-#' question (e.g. multiple versus single response) from properties of the
-#' headers and the responses in the file.
+#' Parse an XLS-format exported file from SurveyMonkey into a data frame. The
+#' function attempts to deduce the format of each survey question (e.g. multiple
+#' versus single response) from patterns in the headers and the responses in the
+#' file.
 #'
-#' To obtain the proper file from SurveyMonkey, request a data export of
-#' "all responses" and choose the XLS format (\strong{not} XLS+).
+#' To obtain the proper file from SurveyMonkey, request a data export of "all
+#' responses" and choose the XLS format (\strong{not} XLS+).
 #'
-#' @param fname Character vector of length 1 pointing to file location
-#' @param idcols Numeric vector identifying columns in the data to be treated
-#' as respondent identifiers as opposed to question responses.
+#' @param fname Character vector of length 1 pointing to file location.
+#' @param idcols Numeric vector identifying columns in the data to be treated as
+#'   respondent identifiers as opposed to question responses.
 #'
-#' @return data frame of class SurveyQuestion. Each row represents a response
-#'
+#' @return an object of class \code{\link{SurveyQuestion}} that inherits from
+#'   data.frame. The data is in long form wherein the \code{question} and
+#'   \code{response} columns are the key and value from a
+#'   \code{\link[tidyr]{gather}} operation. The columns specified in the
+#'   \code{idcols} argument will appear in data as well. Methods are available
+#'   for \link[=summary.SurveyQuestion]{summary} and
+#'   \link[=plot.SurveyQuestion]{plot} for the entire survey or for single
+#'   questions retrieved via \link{extractQuestion}.
+#' @seealso \code{\link{SurveyQuestion}}, \code{\link{extractQuestion}},
+#' \code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
 #' @export
 loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
-#   header <- names(xlsx::read.xlsx2(fname, sheetIndex = 1, endRow = 1, check.names = F))
-#   # blank headers indicate additional responses under the same header as the previous
-#   # - fill those in
-#   headRuns <- rle(header)
-#   headBlanks <- which(headRuns[[2]] == " ")
-#   headRuns[[1]][headBlanks - 1] <- headRuns[[1]][headBlanks - 1] +
-#     headRuns[[1]][headBlanks]
-#   headRuns <- lapply(headRuns, function(x)x[-headBlanks])
-#   header <- inverse.rle(headRuns)
-#   headRuns[[2]] <- seq_along(headRuns[[1]]) - length(idcols)
-#   qId <- paste0("Q", inverse.rle(headRuns))
-#   #for(i in seq_len(length(header)-1)) if(header[i+1] == " ") header[i+1] <- header[i]
-#   #load in with unaltered column names to capture second level headers
-#   dat <- xlsx::read.xlsx2(fname, sheetIndex = 1, startRow = 2, check.names = F)
-#   #data frame to hold various properties learned about each question
-#   #starting with first and second level headers
-#   names(dat)[idcols] <- as.character(header[idcols])
-#   qProps <- data.frame(header = factor(header),
-#                        header2 = names(dat),
-#                        questionId = qId,
-#                        stringsAsFactors = F)
-#   #names(dat)[idcols] <- as.character(qProps[idcols, "header"])
-#   dat <- data.frame(dat) #fix invalid/duplicate names for dplyr/tidyr methods to work
-#
-#   # ensure a RespondentID variable is available to determine sample size
-#   # --------- unstested -------------
-#   if(!("RespondentID" %in% names(dat))) {
-#     dat$RespondentID <- factor(seq_along(nrow(dat)))
-#   }
-#   # ---------- end untested ----------
-#
-#   #row names create a key for lookup of properties by column name/question
-#   row.names(qProps) <- names(dat)
-#   qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
-#
-#   makeNA <- function(x) {
-#     if("" %in% levels(x)) levels(x)[levels(x) == ""] <- NA
-#     x
-#   }
-#   dat %<>% dplyr::mutate_each(dplyr::funs(makeNA))
-
   ## begin readxl version of loading data ##
   dat <- readxl::read_excel(fname, sheet = 1, col_names = F)
   header <- as.character(dat[1, ])
   header[is.na(header)] <- " "
-  # blank headers indicate additional responses under the same header as the previous
-  # - fill those in
+  # blank headers indicate additional responses under the same header as the
+  # previous - fill those in
   headRuns <- rle(header)
   headBlanks <- which(headRuns[[2]] == " ")
   headRuns[[1]][headBlanks - 1] <- headRuns[[1]][headBlanks - 1] +
@@ -73,20 +40,18 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   headRuns <- lapply(headRuns, function(x)x[-headBlanks])
   header <- inverse.rle(headRuns)
   headRuns[[2]] <- seq_along(headRuns[[1]]) - length(idcols)
-  qId <- paste0("Q", inverse.rle(headRuns))
+  #qId <- paste0("Q", inverse.rle(headRuns))
+  qId <- inverse.rle(headRuns)
   header2 <- as.character(dat[2, ])
   header2[is.na(header2)] <- " "
   dat <- dat[-1:-2, ]
   names(dat) <- header2
   names(dat)[idcols] <- as.character(header[idcols])
-
-
   qProps <- data.frame(header = factor(header),
                        header2 = names(dat),
-                       questionId = qId,
+                       questionId = factor(qId),
                        stringsAsFactors = F)
-
-    # ensure a RespondentID variable is available to determine sample size
+  # ensure a RespondentID variable is available to determine sample size
   # --------- unstested -------------
   if(!("RespondentID" %in% names(dat))) {
     dat$RespondentID <- factor(seq_along(nrow(dat)))
@@ -100,7 +65,6 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   #row names create a key for lookup of properties by column name/question
   row.names(qProps) <- names(dat)
   qProps$varNames <- names(dat) #variable to preserve names through dplyr ops
-
 
   ## Begin question property inference ##
   qProps$empty <- sapply(dat, function(x)all(is.na(x)))
@@ -137,7 +101,7 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
 
   # ID single item responses to ignore extra header level when naming question
   qProps %>% dplyr::filter(!trueOthers) %>% magrittr::extract2("questionId") %>%
-    table %>% magrittr::extract(. == 1) %>% names ->
+    table %>% magrittr::extract(. <= 1) %>% names ->
     singles
   qProps %<>% dplyr::mutate(singletons = questionId %in% singles)
 
@@ -156,61 +120,96 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   qProps %<>% dplyr::mutate(blockExtra = ((blockType == "multiBlock" & !multiBlockItems) |
                        (blockType == "multiMatrix" &  !multiMatrixItems)) & !empty)
   # item labels for single response (radio button) matrices
-  qProps %<>% dplyr::mutate(subgroup = ifelse(blockType == "multiBlock" | singletons, NA, header2))
-
-  qProps %<>% dplyr::mutate(type  = ifelse(singletons, "Single Question", "Response Block")) %>%
+  qProps %<>%
+    dplyr::mutate(subgroup = ifelse(blockType == "multiBlock" | singletons |
+                                      (trueOthers & blockType == ""),
+                                    yes = NA, no = header2))
+  qProps %<>% dplyr::mutate(type  = ifelse(singletons, "SingleQuestion", "ResponseBlock")) %>%
     #mutate(type = ifelse(blockType == "lonelyBlock", , type)) %>%
     #mutate(type = ifelse(empty, "Empty", type)) %>%
-    dplyr::mutate(type = ifelse(blockType == "multiBlock", "Multiple Response Question", type)) %>%
-    dplyr::mutate(type = ifelse(blockType == "multiMatrix", "Multiple Response Block", type)) %>%
-    dplyr::mutate(type = ifelse(others | blockExtra, "Free Text", type)) %>%
-    dplyr::mutate(type = ifelse(numbers, "Numeric Entry", type)) %>%
-    dplyr::mutate(type = ifelse(blockType == "numericBlock", "Numeric Block", type))
+    dplyr::mutate(type = ifelse(blockType == "multiBlock", "MultipleResponseQuestion", type)) %>%
+    dplyr::mutate(type = ifelse(blockType == "multiMatrix", "MultipleResponseBlock", type)) %>%
+    dplyr::mutate(type = ifelse(others | blockExtra, "FreeText", type)) %>%
+    dplyr::mutate(type = ifelse(numbers, "NumericEntry", type)) %>%
+    dplyr::mutate(type = ifelse(blockType == "numericBlock", "NumericBlock", type))
     #mutate(type = ifelse(block & lonely, "Response Block", type))
+
   # multiple types existing under a single question header need to be
   # split into seperate quesitonIds for successful plotting and summaries later
-  # --------untested----------
   qTypes <- qProps %>% magrittr::extract(c("questionId", "type")) %>%
     unique
   dups <- qTypes %>% magrittr::extract("questionId") %>% duplicated
   newQIds <- seq(length(unique(qProps$questionId)) + 1, length.out = sum(dups))
   newQIds <- paste0("Q", newQIds)
   qTypes <- cbind(qTypes[dups, ], newQId = newQIds)
-  qProps <- merge(qProps, qTypes, all.x = T) %>%
+  qProps <- merge(qProps, qTypes, all.x = T, sort = F) %>%
     dplyr::mutate(questionId = factor(ifelse(is.na(newQId),
                                              as.character(questionId),
                                              as.character(newQId)))) %>%
     dplyr::select(-newQId)
-  # --------- end untested ---------
-  gathercols <- names(dat)[-idcols]
-  dat <- tidyr::gather_(dat, "question", "response", gathercols, na.rm=TRUE)
 
+  gathercols <- names(dat)[-idcols]
+  dat <- dat %>% dplyr::mutate_each_(dplyr::funs(as.character), gathercols) %>%
+    tidyr::gather_("question", "response", gathercols, na.rm=TRUE)
+
+  #clean up qProps factor levels (will be propagated into questions data)
+  qProps <- qProps[as.numeric(sub("Q", "", qProps$questionId)) > 0, ]
+  qProps %<>% dplyr::mutate_each_(dplyr::funs(factor),
+                                  list(~-varNames, ~-subgroup))
+
+  #add important properties to each reponse record using qProps
   row.names(qProps) <- qProps$varNames
   dat$question <- as.character(dat$question)
   dat$subgroup <- qProps[dat$question, "subgroup"]
-  dat$type <- as.factor(qProps[dat$question, "type"])
+  dat$type <- qProps[dat$question, "type"]
   #tweak MR matrix questions because the true response of value is in the 2nd level header
   #TODO make option to swap first and second regmatches for group/value
-  multimatrices <- qProps$type == "Multiple Response Block" #qProps$multiMatrix & !qProps$others
+  multimatrices <- qProps$type == "MultipleResponseBlock" #qProps$multiMatrix & !qProps$others
   if(any(multimatrices)) {
-    key <- regexec("(.+) - (.+)", qProps[multimatrices, "header2"]) %>%
-      regmatches(x = qProps[multimatrices, "header2"]) %>%
+    mmHeads <- as.character(qProps[multimatrices, "header2"])
+    key <- regexec("(.+) - (.+)", mmHeads) %>%
+      regmatches(x = mmHeads) %>%
       do.call(what = rbind)
-    if(!is.null(key)) {
+    if(ncol(key) > 0) {
       row.names(key) <- qProps[multimatrices , "varNames"]
       multimatrixrows <- which(dat$question %in% qProps[multimatrices, "varNames"])
-      dat$response[multimatrixrows] <- key[dat$question[multimatrixrows], 2]
-      dat$subgroup[multimatrixrows] <- key[dat$question[multimatrixrows], 3]
+      dat$response[multimatrixrows] <- key[dat$question[multimatrixrows], 3]
+      dat$subgroup[multimatrixrows] <- key[dat$question[multimatrixrows], 2]
+
+      qProps[multimatrices, "subgroup"] <- key[ , 2]
+      qProps[multimatrices, "response"] <- key[ , 3]
     }
   }
   dat$subgroup <- as.factor(dat$subgroup)
 
-  #dat$question[!multimatrixrows] <- qProps[dat$question[!multimatrixrows], "header"]
-  dat$questionId <- factor(qProps[dat$question, "questionId"])
-  dat$question <- factor(qProps[dat$question, "header"])
+  dat$questionId <- qProps[dat$question, "questionId"]
+  dat$question <- qProps[dat$question, "header"]
 
-  #dat$question <- as.factor(dat$question)
+  # preserving the subgroups and responses allows for responses or categories
+  # that were never selected in the survey sample to still be represented in
+  # plots. Since this cannot be preserved in the response column of the long
+  # format data frame, it is attached as an attribute instead. Unused responses
+  # from single response questions and blocks will not be preserved in this
+  # manner because they do not appear in the XLS file
+  qProps %<>%
+    dplyr::mutate_(response = ~ifelse(type == "MultipleResponseQuestion",
+                                      as.character(header2), response)) %>%
+    dplyr::group_by_(~questionId, ~type, ~header) %>%
+    dplyr::summarize_(.dots = list(subgroups = ~list(unique(subgroup)),
+                            responses = ~list(unique(response)))) %>%
+    dplyr::mutate_each_(dplyr::funs(ifelse(all(is.na(unlist(.))), list(), .)),
+                 vars = c("responses", "subgroups")) %>% dplyr::ungroup()
+  srQs <- qProps$type %in% c("ResponseBlock", "SingleQuestion")
+  srResponses <- lapply(qProps$questionId[srQs], function(x) {
+    sort(unique(dat[dat$questionId == x, "response"]))
+  })
+  qProps$responses[srQs] <- srResponses
 
+  #sorting ensures predictable behavior in extractQuestion when match is used
+  #against question names and duplicate names exist
+  qpSort <- dplyr::mutate(qProps,
+                          questionId = as.numeric(gsub("Q", "", questionId)))
+  qProps <- qProps[do.call(order, as.list(qpSort)), ]
   as.SurveyQuestion(dat, qProps)
 }
 

@@ -1,9 +1,10 @@
 #' @importFrom magrittr %>%
 #' @importFrom magrittr %<>%
-#' @import xlsx
+#' @import ggplot2
+#' @importFrom graphics plot
 NULL
 
-#' monkeywrangler: A Package to Wrangle, Visualize, and Summarize Survey Monkey Results
+#' monkeywrangler: Read, Visualize, and Summarize Survey Monkey Results
 #'
 #'
 #'
