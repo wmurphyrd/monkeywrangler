@@ -70,9 +70,6 @@ as.SurveyQuestion.data.frame <- function(x, questionProperties) {
   addClass(x, "SurveyQuestion")
 }
 
-# as.SurveyQuestion.PooledSurvey <- function(x, questionProperties) {
-#   NextMethod()
-# }
 
 
 #' Retreive and Modify Survey Question Properties
@@ -127,15 +124,23 @@ getResponseLevels <- function(x, questionId,
 }
 
 extractQuestion <- function(x, question) {
-  if (is.numeric(question)) {
-    question <- levels(x$question)[question]
-  }
-  # question names are looked up in the qProps to ensure predicatble behavior
-  # from match when duplicate question names exist and the data has been sorted
+#   if (is.numeric(question)) {
+#     question <- levels(x$question)[question]
+#   }
+#   # question names are looked up in the qProps to ensure predicatble behavior
+#   # from match when duplicate question names exist and the data has been sorted
+#   qProps <- getQProps(x)
+#   qId <- as.character(qProps$questionId[match(question, qProps$header)])
+#   if(is.na(qId)) stop(paste("Question not found in data:", question))
+  extractQuestionById(x, getQuestionIdFromName(x, question))
+}
+
+getQuestionIdFromName <- function(x, question) {
+  question <- as.character(question)
   qProps <- getQProps(x)
-  qId <- as.character(qProps$questionId[match(question, qProps$header)])
+  qId <- qProps$questionId[match(question, qProps$header)]
   if(is.na(qId)) stop(paste("Question not found in data:", question))
-  extractQuestionById(x, qId)
+  qId
 }
 
 extractQuestionById <- function(x, questionId) {

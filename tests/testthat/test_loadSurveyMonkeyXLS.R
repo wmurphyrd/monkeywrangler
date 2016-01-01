@@ -2,9 +2,9 @@ library(monkeywrangler)
 #library(xlsx)
 context("Parsing SurveyMonkey XLS exports")
 
-rearrange <- function(x) {
-  x[do.call(order, as.list(x)), ]
-}
+# rearrange <- function(x) {
+#   x[do.call(order, as.list(x)), ]
+# }
 srvFile <- system.file("tests", "testthat", "testSurvey.RDS",
                        package = "monkeywrangler")
 #saveRDS(d, srvFile)
@@ -37,7 +37,7 @@ test_that("QuestionId levels match in data and qProps",
           {expect_identical(levels(d$questionId),
                             levels(getQProps(d)$questionId))})
 test_that("Question levels match in data and qProps",
-          {expect_identical(levels(d$question), levels(getQProps(d)$header))})
+          {expect_identical(levels(d$question), levels(getQProps(d)$question))})
 
 test_that("Stored response and subgroup levels do not contain duplicates", {
   expect_equal(sum(sapply(getQProps(d)$responses, anyDuplicated)), 0)
@@ -46,4 +46,4 @@ test_that("Stored response and subgroup levels do not contain duplicates", {
 #tests TODO
 
 #data with no multimatrices
-#data with multimatrices where ther header2 does noth match the expected regex
+#data with multimatrices where ther header2 does not match the expected regex

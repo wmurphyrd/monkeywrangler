@@ -210,6 +210,8 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
 #   qpSort <- dplyr::mutate(qProps,
 #                           questionId = as.numeric(gsub("Q", "", questionId)))
   qProps <- qProps[do.call(order, as.list(qProps)), ]
+  qProps <- dplyr::select_(qProps, ~questionId, question = ~header, ~type,
+                           ~subgroups, ~responses)
   as.SurveyQuestion(dat, qProps)
 }
 
