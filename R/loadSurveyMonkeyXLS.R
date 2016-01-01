@@ -49,7 +49,7 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   names(dat)[idcols] <- as.character(header[idcols])
   qProps <- data.frame(header = factor(header),
                        header2 = names(dat),
-                       questionId = factor(qId),
+                       questionId = qId,
                        stringsAsFactors = F)
   # ensure a RespondentID variable is available to determine sample size
   # --------- unstested -------------
@@ -100,7 +100,8 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
                      others = trueOthers | likelyOthers)
 
   # ID single item responses to ignore extra header level when naming question
-  qProps %>% dplyr::filter(!trueOthers) %>% magrittr::extract2("questionId") %>%
+  qProps %>% dplyr::mutate_(questionId = ~factor(questionId)) %>%
+    dplyr::filter(!trueOthers) %>% magrittr::extract2("questionId") %>%
     table %>% magrittr::extract(. <= 1) %>% names ->
     singles
   qProps %<>% dplyr::mutate(singletons = questionId %in% singles)
@@ -116,7 +117,7 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
     if(sum(qProps[colNames, "lonely"]) > 1) return("lonelyBlock")
     "block"
   })
-  qProps %<>% dplyr::mutate(blockType = blockType[questionId])
+  qProps %<>% dplyr::mutate(blockType = blockType[as.character(questionId)])
   qProps %<>% dplyr::mutate(blockExtra = ((blockType == "multiBlock" & !multiBlockItems) |
                        (blockType == "multiMatrix" &  !multiMatrixItems)) & !empty)
   # item labels for single response (radio button) matrices
@@ -139,13 +140,11 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
   qTypes <- qProps %>% magrittr::extract(c("questionId", "type")) %>%
     unique
   dups <- qTypes %>% magrittr::extract("questionId") %>% duplicated
-  newQIds <- seq(length(unique(qProps$questionId)) + 1, length.out = sum(dups))
-  newQIds <- paste0("Q", newQIds)
+  newQIds <- seq(max(qProps$questionId) + 1, length.out = sum(dups))
+  #newQIds <- paste0("Q", newQIds)
   qTypes <- cbind(qTypes[dups, ], newQId = newQIds)
   qProps <- merge(qProps, qTypes, all.x = T, sort = F) %>%
-    dplyr::mutate(questionId = factor(ifelse(is.na(newQId),
-                                             as.character(questionId),
-                                             as.character(newQId)))) %>%
+    dplyr::mutate(questionId = ifelse(is.na(newQId), questionId, newQId)) %>%
     dplyr::select(-newQId)
 
   gathercols <- names(dat)[-idcols]
@@ -153,9 +152,10 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
     tidyr::gather_("question", "response", gathercols, na.rm=TRUE)
 
   #clean up qProps factor levels (will be propagated into questions data)
-  qProps <- qProps[as.numeric(sub("Q", "", qProps$questionId)) > 0, ]
+  # qProps <- qProps[as.numeric(sub("Q", "", qProps$questionId)) > 0, ]
+  qProps <- qProps[qProps$questionId > 0, ]
   qProps %<>% dplyr::mutate_each_(dplyr::funs(factor),
-                                  list(~-varNames, ~-subgroup))
+                                  list(~-varNames, ~-subgroup, ~-questionId))
 
   #add important properties to each reponse record using qProps
   row.names(qProps) <- qProps$varNames
@@ -207,9 +207,9 @@ loadSurveyMonkeyXLS <- function(fname, idcols = 1:9) {
 
   #sorting ensures predictable behavior in extractQuestion when match is used
   #against question names and duplicate names exist
-  qpSort <- dplyr::mutate(qProps,
-                          questionId = as.numeric(gsub("Q", "", questionId)))
-  qProps <- qProps[do.call(order, as.list(qpSort)), ]
+#   qpSort <- dplyr::mutate(qProps,
+#                           questionId = as.numeric(gsub("Q", "", questionId)))
+  qProps <- qProps[do.call(order, as.list(qProps)), ]
   as.SurveyQuestion(dat, qProps)
 }
 

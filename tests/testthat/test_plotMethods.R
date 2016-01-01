@@ -8,8 +8,8 @@ srv <- readRDS(system.file("tests", "testthat", "testSurvey.RDS",
 #   expect_true({plot(srv); TRUE})
 # })
 test_that("Plot of first question executes without error", {
-  expect_silent(plot(extractQuestionById(srv, "Q1")))
+  expect_silent(plot(extractQuestionById(srv, 1)))
 })
 
 test_that("Plotting with optional questionId specification works",
-          expect_is(plot(srv, "Q16"), "ggplot"))
+          expect_is(plot(srv, 16), "ggplot"))

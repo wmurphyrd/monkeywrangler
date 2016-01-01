@@ -28,9 +28,9 @@ test_that("Interpreted question properties are not altered",
 test_that("Loaded survey data is not altered", {
   expect_equivalent(d, srv)
 })
-test_that("QuestionId does not have extraneous levels",
-          {expect_identical(levels(d$questionId),
-                            levels(factor(d$questionId)))})
+# test_that("QuestionId does not have extraneous levels",
+#           {expect_identical(levels(d$questionId),
+#                             levels(factor(d$questionId)))})
 test_that("Question does not have extraneous levels",
           {expect_identical(levels(d$question), levels(factor(d$question)))})
 test_that("QuestionId levels match in data and qProps",
