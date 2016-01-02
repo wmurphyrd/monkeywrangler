@@ -2,11 +2,60 @@
 % Please edit documentation in R/SurveyQuestion.R
 \name{questionProperties}
 \alias{questionProperties}
-\title{Retreive and Modify Survey Question Properties}
+\title{The questionPropeties object}
 \usage{
-questionProperties()
+questionProperties(questionId, question, type, subgroups, responses)
+}
+\arguments{
+\item{questionId}{Integer vector of unique question identifiers}
+
+\item{question}{Factor of the text of survey questions}
+
+\item{type}{Factor describing the format of the question}
+
+\item{subgroups}{List of character vectors or named lists storing the levels
+for the \code{\link{SurveyQuestion}} \code{subgroup} column for each
+question}
+
+\item{responses}{List of character vectors or named lists storing the levels
+for the \code{\link{SurveyQuestion}} \code{response} column for each
+question}
+}
+\value{
+A \code{questionProperties} data.frame suitable for
+  \code{\link{as.SurveyQuestion}} or \code{\link{setQProps}}.
 }
 \description{
-Retreive and Modify Survey Question Properties
+Question properties are automatically generated when a survey is parsed with
+\code{\link{loadSurveyMonkeyXLS}}, so you will not likely need to call this
+function directly. However, it's structure is documented here for reference.
+}
+\details{
+The \code{questionProperties} attribute stores supporting information about
+the questions in a \code{SurveyQuestion} object such as factor or ordered
+factor levels that are restored when a single question is extracted from the
+larger data set via \code{\link{extractQuestion}}. See
+\code{\link{getQProps}} for details on accessing or updating an existing
+\code{SurveyQuestion} object's question properties.
+
+Currently supported values for the \code{type} argument are: \describe{
+\item{SingleQuestion}{A single multiple choice survey question wherein only
+one option can be selected (e.g., radio button or drop-down list)}
+\item{ResponseBlock}{A group of single responses each corresponding to one of
+several survey items that are enumerated in \code{subgroups} (e.g., a matrix
+of radio buttons)} \item{MultipleResponseQuestion}{A single multiple choice
+survey question that allows more than one option to be selected (e.g.,
+checkboxes)} \item{MultipleResponseBlock}{A group of multiple responses each
+corresponding to to one of several survey items that are enumerated in
+\code{subgroups} (e.g., a matrix of checkboxes)} \item{NumericEntry}{A single
+survey question that takes an entry in the form of a number (e.g., ranking,
+slider, or textbox)} \item{NumericBlock}{A group of numeric entries each
+corresponding to one of several survey items that are enumerated in
+\code{subgroups}} \item{FreeText}{A survey question that accepts any typed
+input from the respondent. (e.g. "Other" textbox or text area)} }
+}
+\seealso{
+\code{\link{getQProps}}, \code{\link{loadSurveyMonkeyXLS}},
+  \code{\link{SurveyQuestion}}
 }
 

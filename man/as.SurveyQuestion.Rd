@@ -3,24 +3,46 @@
 \name{as.SurveyQuestion}
 \alias{as.SurveyQuestion}
 \alias{as.SurveyQuestion.data.frame}
-\title{Coerce to SurveyQuestion}
+\alias{is.SurveyQuestion}
+\title{Coerce to or Check If SurveyQuestion}
 \usage{
 as.SurveyQuestion(x, ...)
 
 \method{as.SurveyQuestion}{data.frame}(x, questionProperties)
+
+is.SurveyQuestion(x)
 }
 \arguments{
 \item{x}{Data frame containing all of the columns described in
-\link{SurveyQuestion} to be coerced into a SurveyQuestion object}
+\link{SurveyQuestion} to be coerced into a SurveyQuestion object or tested
+to determine if it is currently a SurveyQuestion object.}
 
 \item{questionProperties}{Data frame defining the properties of each question
 in the survey. See \link{questionProperties} for structure and details}
+}
+\value{
+An object of class \code{SurveyQuestion} for \code{as.SurveyQuestion}
+ . Logical for \code{is.SurveyQuestion}.
 }
 \description{
 Functions to check if an object is a valid SurveyQuestion, or coerce it if
 possible
 }
 \details{
-Test link \code{\link{SurveyQuestion}}
+The coercion method, as.SurveyQuestion, is primary for internal use. It does
+not verify the appropriateness of the data provided, and malformed
+SurveyQuestion objects created in this manner will lead to errors if supplied
+to class methods. Creating SurveyQuestion objects direclty from file using
+\code{\link{loadSurveyMonkeyXLS}} is preferred, but refer to
+\code{\link{SurveyQuestion}} for structure detailes if manual construction is
+necessary.
+
+The checking function, is.SurveyQuestion, verifies not only that the object's
+class contrains SurveyQuestion, but also that a questionProperties attribute
+is available (without verifying its structure).
+}
+\seealso{
+\code{\link{loadSurveyMonkeyXLS}}, \code{\link{SurveyQuestion}},
+  \code{\link{questionProperties}}
 }
 

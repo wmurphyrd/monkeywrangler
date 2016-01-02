@@ -3,6 +3,8 @@
 S3method(as.SurveyQuestion,data.frame)
 export(SurveyQuestion)
 export(as.SurveyQuestion)
+export(getQProps)
+export(is.SurveyQuestion)
 export(loadSurveyMonkeyXLS)
 export(questionProperties)
 import(ggplot2)

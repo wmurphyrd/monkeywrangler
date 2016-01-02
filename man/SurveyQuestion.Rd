@@ -11,8 +11,8 @@ SurveyQuestion(respondentId, questionId, question, subgroup, response, type,
 \item{respondentId}{Factor of identifiers to link individual response rows
 from the same individual respondent.}
 
-\item{questionId}{Factor of identifiers to link individual response rows from
-the same survey question.}
+\item{questionId}{Integer vector of identifiers to link individual response
+rows from the same survey question.}
 
 \item{question}{Factor of the text of the questions from the survey
 corresponding to the \code{response}.}
@@ -30,6 +30,9 @@ methods}
 \item{questionProperties}{Data frame defining the properties of each question
 in the survey. See \link{questionProperties} for structure and details}
 }
+\value{
+An object of class \code{SurveyQuestion}
+}
 \description{
 This long format data frame is produced by \link{loadSurveyMonkeyXLS}.
 Methods are defined for \link[=summary.SurveyQuestion]{summary} and
@@ -40,20 +43,19 @@ of the SurveyQuestion object.
 \details{
 The questionProperties object is stored as an attribute named
 "questionProperties" in the SurveyQuestion object. It contains one row for
-each question in the survey. It contains \code{questionId},
-\code{question}, and \code{type} columns similar to those
-described above as well as two list columns, \code{subgroups} and
-\code{responses}, which store the factor levels that apply to each individual
-question. The
-\code{questionId}, \code{question}, and \code{type} columns are duplicated in
-the main SurveyQuestion data frame for human readability, but all methods
-use the values stored in the questionProperties attribute. Therefore, if you
-need to alter the properties of a question, you will need make those changes
-in the questionProperties attributes. Convenience functions exist for common
+each question in the survey. It contains \code{questionId}, \code{question},
+and \code{type} columns similar to those described above as well as two list
+columns, \code{subgroups} and \code{responses}, which store the factor levels
+that apply to each individual question. The \code{questionId},
+\code{question}, and \code{type} columns are duplicated in the main
+SurveyQuestion data frame for human readability, but all methods use the
+values stored in the questionProperties attribute. Therefore, if you need to
+alter the properties of a question, you will need make those changes in the
+questionProperties attributes. Convenience functions exist for common
 changes.
 }
 \seealso{
 \code{\link{questionProperties}}, \code{\link{loadSurveyMonkeyXLS}},
-\code{\link{as.SurveyQuestion}}
+  \code{\link{as.SurveyQuestion}}
 }
 

@@ -35,7 +35,7 @@
 #'   methods
 #' @param questionProperties Data frame defining the properties of each question
 #'   in the survey. See \link{questionProperties} for structure and details
-#'
+#' @return An object of class \code{SurveyQuestion}
 #' @seealso \code{\link{questionProperties}}, \code{\link{loadSurveyMonkeyXLS}},
 #'   \code{\link{as.SurveyQuestion}}
 #' @export
@@ -46,18 +46,34 @@ SurveyQuestion <- function(respondentId, questionId, question, subgroup,
   as.SurveyQuestion(data, questionProperties)
 }
 
-#' Coerce to SurveyQuestion
+#' Coerce to or Check If SurveyQuestion
 #'
 #' Functions to check if an object is a valid SurveyQuestion, or coerce it if
 #' possible
 #'
-#' Test link \code{\link{SurveyQuestion}}
+#' The coercion method, as.SurveyQuestion, is primary for internal use. It does
+#' not verify the appropriateness of the data provided, and malformed
+#' SurveyQuestion objects created in this manner will lead to errors if supplied
+#' to class methods. Creating SurveyQuestion objects direclty from file using
+#' \code{\link{loadSurveyMonkeyXLS}} is preferred, but refer to
+#' \code{\link{SurveyQuestion}} for structure detailes if manual construction is
+#' necessary.
+#'
+#' The checking function, is.SurveyQuestion, verifies not only that the object's
+#' class contrains SurveyQuestion, but also that a questionProperties attribute
+#' is available (without verifying its structure).
 #'
 #' @param x Data frame containing all of the columns described in
-#'   \link{SurveyQuestion} to be coerced into a SurveyQuestion object
+#'   \link{SurveyQuestion} to be coerced into a SurveyQuestion object or tested
+#'   to determine if it is currently a SurveyQuestion object.
 #' @param questionProperties Data frame defining the properties of each question
 #'   in the survey. See \link{questionProperties} for structure and details
+#' @seealso \code{\link{loadSurveyMonkeyXLS}}, \code{\link{SurveyQuestion}},
+#'   \code{\link{questionProperties}}
+#' @return An object of class \code{SurveyQuestion} for \code{as.SurveyQuestion}
+#'  . Logical for \code{is.SurveyQuestion}.
 #' @export
+#'
 as.SurveyQuestion <- function(x, ...) {
   UseMethod("as.SurveyQuestion")
 }
@@ -70,24 +86,134 @@ as.SurveyQuestion.data.frame <- function(x, questionProperties) {
   addClass(x, "SurveyQuestion")
 }
 
+#' @rdname as.SurveyQuestion
+#' @export
+is.SurveyQuestion <- function(x) {
+  inherits(x, "SurveyQuestion") && !is.null(getQProps(x))
+}
 
+#' The questionPropeties object
+#'
+#' Question properties are automatically generated when a survey is parsed with
+#' \code{\link{loadSurveyMonkeyXLS}}, so you will not likely need to call this
+#' function directly. However, it's structure is documented here for reference.
+#'
+#' The \code{questionProperties} attribute stores supporting information about
+#' the questions in a \code{SurveyQuestion} object such as factor or ordered
+#' factor levels that are restored when a single question is extracted from the
+#' larger data set via \code{\link{extractQuestion}}. See
+#' \code{\link{getQProps}} for details on accessing or updating an existing
+#' \code{SurveyQuestion} object's question properties.
+#'
+#' Currently supported values for the \code{type} argument are: \describe{
+#' \item{SingleQuestion}{A single multiple choice survey question wherein only
+#' one option can be selected (e.g., radio button or drop-down list)}
+#' \item{ResponseBlock}{A group of single responses each corresponding to one of
+#' several survey items that are enumerated in \code{subgroups} (e.g., a matrix
+#' of radio buttons)} \item{MultipleResponseQuestion}{A single multiple choice
+#' survey question that allows more than one option to be selected (e.g.,
+#' checkboxes)} \item{MultipleResponseBlock}{A group of multiple responses each
+#' corresponding to to one of several survey items that are enumerated in
+#' \code{subgroups} (e.g., a matrix of checkboxes)} \item{NumericEntry}{A single
+#' survey question that takes an entry in the form of a number (e.g., ranking,
+#' slider, or textbox)} \item{NumericBlock}{A group of numeric entries each
+#' corresponding to one of several survey items that are enumerated in
+#' \code{subgroups}} \item{FreeText}{A survey question that accepts any typed
+#' input from the respondent. (e.g. "Other" textbox or text area)} }
+#'
+#' @param questionId Integer vector of unique question identifiers
+#' @param question Factor of the text of survey questions
+#' @param type Factor describing the format of the question
+#' @param subgroups List of character vectors or named lists storing the levels
+#'   for the \code{\link{SurveyQuestion}} \code{subgroup} column for each
+#'   question
+#' @param responses List of character vectors or named lists storing the levels
+#'   for the \code{\link{SurveyQuestion}} \code{response} column for each
+#'   question
+#' @return A \code{questionProperties} data.frame suitable for
+#'   \code{\link{as.SurveyQuestion}} or \code{\link{setQProps}}.
+#' @seealso \code{\link{getQProps}}, \code{\link{loadSurveyMonkeyXLS}},
+#'   \code{\link{SurveyQuestion}}
+#' @export
+questionProperties <- function(questionId, question, type,
+                               subgroups, responses) {
+  data.frame(questionId, question, type, subgroups, responses)
+}
 
 #' Retreive and Modify Survey Question Properties
 #'
+#' Functions to access or modify the information stored in the
+#' \code{\link{questionProperties}} attribute of \code{\link{SurveyQuestion}}
+#' objects. The most commonly used of these is \code{setResponseLevels}, which
+#' can rearrange or relabel the response options from multiple choice survey
+#' questions and identify ordinal survey scales (e.g., Likert), in order to
+#' generate appropriate population estimates in plots and summaries.
 #'
+#' @param x \code{\link{SurveyQuestion}} object.
+#' @param questionProperties \code{\link{questionProperties}} object.
+#' @param questionId Integer vector identifying one or more questions for
+#'   retrieval or updating
+#' @param levels Character vector or named list desrcibing how to restructure
+#'   the factor levels. See details.
+#' @param var Character identifying whether to update/retrieve the levels for
+#'   the \code{response} or \code{subgroup} columns in \code{x}
+#' @param ordinal Logical indicating whether the levels should be treated as an
+#'   ordered scale. Alters the way that population estimates are determined in
+#'   plot and summary methods.
+#' @param onlyMatches Logical. Should levels only be updated for questions where
+#'   each existing level matches with an item in \code{levels}? See details.
+#'
+#' @return For \code{getQProps}, a data frame wiht columns questionId (integer),
+#'   question (factor), type (factor), subgroups (list), and responses (list).
+#'   For \code{setQProps} and \code{setResponseLevels}, an updated
+#'   \code{\link{SurveyQuestion}} object. For \code{getResponseLevels}, a
+#'   character vector or list in the same format as \code{levels} above,
+#'   optinally containing an "ordinal" attribute, or a list of such when
+#'   \code{questionId} has length greater than 1.
 #' @export
-questionProperties <- function() {
-
-}
 getQProps <- function(x) {
   attr(x, "questionProperties")
 }
 
-setQProps <- function(x, a) {
-  attr(x, "questionProperties") <- a
+#' @describeIn getQProps Replaces the \code{questionProperties} attribute of
+#'   \code{x}. No validity checks are performed and no propagation of changes
+#'   into the \code{SurveyQuestion} data occurs, so the use of this function to
+#'   modify question properties discouraged. One normal use is restoring the
+#'   \code{questionProperties} attribute after utilizing functions such as
+#'   \code{\link[dplyr]{mutate}} which cause attributes to be lost, having first
+#'   preserved the \code{questionProperties} by storing the result of
+#'   \code{getQProps} in a variable.
+setQProps <- function(x, questionProperties) {
+  attr(x, "questionProperties") <- questionProperties
   x
 }
 
+#' @describeIn getQProps The SurveyMonkey XLS export contains limited
+#'   information about the original response options. For single repsonse
+#'   questions, options that were never selected will be omitted and their order
+#'   will not be retained. For both single and multiple response questions, any
+#'   "weighting" or ordinal ranking of options is never retained. The plot and
+#'   summary methods in this package can make use of that information, but it
+#'   needs to be restored with \code{setResponseLevels}. This function is
+#'   designed to be versatile to make that process as simple as possible.
+#'   Changes made via \code{setResponseLevels} do not alter the underlying data
+#'   in the \code{SurveyQuestion} object; instead they alter how that data is
+#'   provided when other methods use \code{\link{extractQuestion}} to access it.
+#' @section Character v. List \code{levels}:
+#' When \code{levels} is provided as a
+#'   character vector, it will be used as the \code{levels} argument of
+#'    \code{\link[base]{factor}} or \code{\link[base]{ordered}}
+#'   constructor. The values must match exactly to existing levels, but they can
+#'   be specified in the order you want them to be displayed and you can omit
+#'   levels that you want to be ommitted from plots and surveys (they will be
+#'   treated as missing data). When \code{levels} is provided as a list, it will
+#'   be provided as the \code{value} in a \code{\link[base]{levels}} assignment.
+#'   Each item in the list should be a named character vector of existing
+#'   reponse(s), where its name specifies the replacement value. This allows you
+#'   flexibilty to rename the responses and ot unify scales from different
+#'   questions into a consistent one. See examples.
+#'
+#'
 setResponseLevels <- function(x, questionId, levels,
                               var = c("responses", "subgroups"),
                               ordinal = F, onlyMatches = F) {
@@ -114,6 +240,11 @@ setResponseLevels <- function(x, questionId, levels,
   setQProps(x, qProps)
 }
 
+#' @describeIn getQProps Used to retreive the currently specified levels for
+#' responses or subgroups for one or more questions. The returned object is of
+#' the same structure as the \code{levels} argument to \code{setResponseLevels}
+#' and will have an attribute "ordinal" with a logical value or TRUE if the
+#' levels represent those of an ordered factor.
 getResponseLevels <- function(x, questionId,
                               var = c("responses", "subgroups")) {
   var <- match.arg(var)

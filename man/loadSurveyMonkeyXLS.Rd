@@ -14,11 +14,14 @@ respondent identifiers as opposed to question responses.}
 }
 \value{
 an object of class \code{\link{SurveyQuestion}} that inherits from
-  data.frame. The data is in long form wherein the \code{question} and
-  \code{response} columns are the key and value from a
-  \code{\link[tidyr]{gather}} operation. The columns specified in the
-  \code{idcols} argument will appear in data as well. Methods are available
-  for \link[=summary.SurveyQuestion]{summary} and
+  data.frame. The data is in long form wherein each row respresents a single
+  selection from the with the corresponding question named in the
+  \code{question} column and the selected or entered value in the
+  \code{response} column. The columns specified in the \code{idcols} argument
+  will appear in data as well as a unique \code{questionId}, question format
+  \code{type}, and \code{subgroup} within a survey question where
+  appropriate. Methods are available for
+  \link[=summary.SurveyQuestion]{summary} and
   \link[=plot.SurveyQuestion]{plot} for the entire survey or for single
   questions retrieved via \link{extractQuestion}.
 }
@@ -34,6 +37,6 @@ responses" and choose the XLS format (\strong{not} XLS+).
 }
 \seealso{
 \code{\link{SurveyQuestion}}, \code{\link{extractQuestion}},
-\code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
+  \code{\link{plot.SurveyQuestion}}, \code{\link{summary.SurveyQuestion}}
 }
 
