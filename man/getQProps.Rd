@@ -45,6 +45,22 @@ For \code{getQProps}, a data frame wiht columns questionId (integer),
   character vector or list in the same format as \code{levels} above,
   optinally containing an "ordinal" attribute, or a list of such when
   \code{questionId} has length greater than 1.
+
+ @examples
+  monkey <- data(exampleSurveyMonkey)
+  # Rearrange levels, mark as ordinal, and omit "N/A" responses
+  getResponseLevels(monkey, questionId = 1)
+  newLevels <- c("TODO")
+  monkey <- setResponseLevels(monkey, questionId = 1,
+                              levels = newLevels, ordinal = T)
+  getResponseLevels(monkey, questionId = 1)
+
+  # Recode several scales in a survey into a unified scale
+  newLevels <- list(Negative = c("TODO"),
+                    Neutral = c("TODO"),
+                    Positive = c("TODO"))
+  monkey <- setResponseLevels(monkey, questionId = unique(monkey$questionId),
+                              levels = newLevels, onlyMatches = T)
 }
 \description{
 Functions to access or modify the information stored in the
@@ -75,15 +91,42 @@ needs to be restored with \code{setResponseLevels}. This function is
 designed to be versatile to make that process as simple as possible.
 Changes made via \code{setResponseLevels} do not alter the underlying data
 in the \code{SurveyQuestion} object; instead they alter how that data is
-provided when other methods use \code{\link{extractQuestion}} to
-access it.
+provided when other methods use \code{\link{extractQuestion}} to access it.
 
-\item \code{getResponseLevels}: temp
+\item \code{getResponseLevels}: Used to retreive the currently specified levels for
+responses or subgroups for one or more questions. The returned object is of
+the same structure as the \code{levels} argument to \code{setResponseLevels}
+and will have an attribute "ordinal" with a logical value or TRUE if the
+levels represent those of an ordered factor.
 }}
 \section{Character v. List \code{levels}}{
-
  When \code{levels} is provided as a
-  character vecetor, it is passed to the \code{factor} or \code{ordered}
-  constructor via its \code{levels} argument.
+  character vector, it will be used as the \code{levels} argument of
+  \code{\link[base]{factor}} or \code{\link[base]{ordered}} constructor. The
+  values must match exactly to existing levels, but they can be specified in
+  the order you want them to be displayed and you can omit levels that you
+  want to be ommitted from plots and surveys (they will be treated as missing
+  data). When \code{levels} is provided as a list, it will be provided as the
+  \code{value} in a \code{\link[base]{levels}} assignment. Each item in the
+  list should be a named character vector of existing reponses, where its
+  name specifies the replacement value. This allows you flexibilty to rename
+  the responses and to unify scales from different questions into a
+  consistent one. See examples and help files for \code{\link[base]{factor}}
+  and \code{\link[base]{levels}}.
+}
+
+\section{Multiple questions and \code{onlyMatches}}{
+ The \code{questionId}
+  argument can be a vector to set or retrieve (as a list) levels for multiple
+  questions within a \code{SurveyQuestion} object. With the
+  \code{onlyMatches} option, you can apply level updates across many
+  questions or the entire survey without having to pick out which questions
+  the update applies to. When \code{onlyMatches} is \code{TRUE}, a check is
+  performed for each question and the level update is only applied when all
+  of the original responses can be matched to the values (when \code{levels}
+  is a character vector) or item names (when \code{levels} is a list). When
+  using this option, you cannot exclude specific reponses by omitting them
+  from the new levels as this would prevent the new levels from matching with
+  the question. See examples.
 }
 
