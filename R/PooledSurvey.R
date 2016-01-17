@@ -42,7 +42,6 @@ PooledSurvey <- function(...) {
 PooledSurvey <- function(...) {
   dataList <- list(...)
   if (length(dataList) > 1) {
-    dataList <- lapply(dataList, as.SurveyQuestion)
     attrList <- lapply(dataList, getQProps)
     dataList <- lapply(dataList, ensureSampleSizeAvailable)
     #Create keys of question names (with duplicates resolved) to question ids

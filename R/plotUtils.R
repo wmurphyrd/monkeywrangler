@@ -45,8 +45,9 @@ convertResponsesToProportions <- function(answers, factor = NA) {
 }
 
 ensureSampleSizeAvailable <- function(answers) {
-  if(is.null(answers$sampSize)) answers <-
-      dplyr::mutate(answers, sampSize = length(unique(RespondentID)))
+  if(is.null(answers$sampSize)) {
+    answers$sampSize <- length(unique(answers$respondentId))
+  }
   answers
 }
 

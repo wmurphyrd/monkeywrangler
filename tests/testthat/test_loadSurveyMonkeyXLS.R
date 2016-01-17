@@ -9,7 +9,7 @@ srvFile <- system.file("tests", "testthat", "testSurvey.RDS",
                        package = "monkeywrangler")
 #saveRDS(d, srvFile)
 srv <- readRDS(srvFile)
-f <- system.file("extdata", "example.xls", package = "monkeywrangler")
+f <- system.file("extdata", "example2.xls", package = "monkeywrangler")
 eqpFile <- system.file("tests", "testthat", "expected_qProps.RDS",
                    package = "monkeywrangler")
 #saveRDS(getQProps(d), eqpFile)
