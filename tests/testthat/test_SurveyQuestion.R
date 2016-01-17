@@ -102,5 +102,13 @@ test_that("Response levels can be changed for multiple questions", {
 })
 
 test_that("Unexpected NA's are not created when altering levels", {
+  expect_true(FALSE)
+})
 
+test_that("updateQuestionId works", {
+  srv2 <- updateQuestionId(srv, getQProps(srv)$questionId,
+                          getQProps(srv)$questionId * 2)
+  expect_equal(srv$questionId * 2, srv2$questionId)
+  expect_equal(getQProps(srv)$questionId * 2,
+               getQProps(srv2)$questionId)
 })

@@ -333,3 +333,11 @@ restoreLevels <- function(x, levels) {
   }
   x
 }
+
+updateQuestionId <- function(x, old, new) {
+  qProps <- getQProps(x)
+  x$questionId <- new[match(x$questionId, old)]
+  qProps$questionId <- new[match(qProps$questionId, old)]
+  x <- setQProps(x, qProps)
+  x
+}
